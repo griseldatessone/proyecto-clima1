@@ -36,6 +36,290 @@ else:
 import pandas as pd # Importamos Pandas con el apodo 'pd' (es el estándar)
 
 # --- (Imagina que aquí arriba está el código del "Segundo Viaje" que ya hicimos) ---
+
+import requests
+import time # Importamos 'time' para que el robot pueda esperar unos segundos si es necesario
+# --- CONFIGURACIÓN ---
+# En vez de escribir la API Key aquí, la pedimos al usuario
+api_key = input("🔑 Introduce tu API Key de AEMET: ")
+
+url_aemet = "https://opendata.aemet.es/opendata/api/observacion/convencional/todas"
+headers = {'cache-control': "no-cache", 'api_key': api_key}
+
+
+# --- VIAJE 1: Pedir permiso y dirección secreta ---
+print("🤖 Robot: Hola AEMET, ¿me das permiso para ver el clima de hoy?")
+respuesta_1 = requests.get(url_aemet, headers=headers)
+datos_permiso = respuesta_1.json() # Convertimos la respuesta en un diccionario de Python
+
+if datos_permiso['estado'] == 200:
+    # Si el estado es 200, AEMET nos ha dado una URL secreta en el campo 'datos'
+    url_secreta = datos_permiso['datos']
+    print(f"✅ Robot: ¡Permiso concedido! La dirección del paquete es: {url_secreta}")
+
+    # --- VIAJE 2: Ir a la dirección secreta a recoger el paquete ---
+    print("🤖 Robot: Yendo a la dirección secreta a por los datos reales...")
+    # No necesitamos enviar la API Key en este segundo viaje, la URL secreta ya es el permiso
+    respuesta_final = requests.get(url_secreta)
+
+    # Estos son nuestros datos climáticos reales
+    datos_climaticos = respuesta_final.json()
+
+    # Vamos a mostrar solo los primeros 2 registros para no llenar la pantalla
+    print("📊 Robot: ¡He traído los datos! Aquí tienes una muestra de las primeras estaciones:")
+    print(datos_climaticos[:2])
+
+else:
+    print(f"❌ Error: AEMET dice: {datos_permiso['descripcion']}")
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Supongamos que ya tienes tu DataFrame 'tabla_clima' con datos de AEMET
+# Asegúrate de que la columna 'ubi' contiene el nombre de las estaciones y 'ta' las temperaturas
+
+# 1. Filtramos los datos para obtener solo las estaciones de Tenerife
+tenerife_data = tabla_clima[tabla_clima['ubi'].str.contains('Tenerife', case=False)]
+
+# 2. Preparamos los datos (aquí tomamos solo las 10 primeras estaciones para no sobrecargar el gráfico)
+top_10_tenerife = tenerife_data.head(10)
+
+# 3. Configuramos el dibujo
+plt.figure(figsize=(12, 6))  # Definimos el tamaño del lienzo (ancho y alto)
+
+# 4. Dibujamos las barras
+# 'ubi' es el nombre de la ciudad y 'ta' es la temperatura
+plt.bar(top_10_tenerife['ubi'], top_10_tenerife['ta'], color='pink')
+
+# 5. Ponemos "carteles" para que se entienda
+plt.title('Temperatura actual en las estaciones de AEMET en Tenerife', fontsize=30)
+plt.xlabel('Ciudad / Estación', fontsize=12)
+plt.ylabel('Temperatura (°C)', fontsize=12)
+
+# Giramos los nombres de las estaciones para que no se choquen entre ellos
+plt.xticks(rotation=45, ha='right')
+
+# 6. ¡Mostramos la obra de arte!
+plt.show()
+
+
+from datetime import datetime # La herramienta para manejar fechas
+
+# 1. El robot mira la fecha de hoy
+# Le pedimos que la escriba en formato: Año-Mes-Día
+fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+
+# 2. Creamos un nombre de archivo dinámico
+# Usamos una 'f' antes de las comillas para poder meter la variable entre llaves {}
+nombre_archivo = f"clima_canarias_{fecha_hoy}.csv"
+
+# 3. Guardamos la tabla con ese nombre único
+tabla_clima.to_csv(nombre_archivo, index=False)
+
+print(f"✅ Robot: ¡Misión cumplida! He guardado los datos en '{nombre_archivo}'")
+
+
+# 1. Filtramos los datos para obtener solo las estaciones de Tenerife
+tenerife_data = tabla_clima[tabla_clima['ubi'].str.contains('Tenerife', case=False)]
+
+# 2. Encontrar la temperatura más alta y la más baja de las estaciones de Tenerife
+temp_maxima_tenerife = tenerife_data['ta'].max()
+temp_minima_tenerife = tenerife_data['ta'].min()
+
+print(f"🌡️ La temperatura más alta registrada en Tenerife es: {temp_maxima_tenerife}°C")
+print(f"❄️ La temperatura más baja registrada en Tenerife es: {temp_minima_tenerife}°C")
+
+# 3. ¿Pero qué ciudades son esas?
+# Buscamos la FILA completa donde la temperatura coincide con el máximo
+ciudad_mas_calorosa = tenerife_data[tenerife_data['ta'] == temp_maxima_tenerife]
+ciudad_mas_fria = tenerife_data[tenerife_data['ta'] == temp_minima_tenerife]
+
+# 4. Mostramos el nombre de la ciudad y su temperatura
+# '.values[0]' se usa para sacar el texto limpio de la tabla
+print(f"🔥 La ciudad más calurosa en Tenerife es {ciudad_mas_calorosa['ubi'].values[0]} con {temp_maxima_tenerife}°C")
+print(f"🧊 La ciudad más fría en Tenerife es {ciudad_mas_fria['ubi'].values[0]} con {temp_minima_tenerife}°C")
+
+
+
+
+
+# Agrupamos por ciudad ('ubi') y calculamos el máximo y mínimo de su temperatura
+resumen_ciudades = tabla_clima.groupby('ubi')['ta'].agg(['max', 'min'])
+
+print("📋 Resumen de extremos por cada ciudad:")
+print(resumen_ciudades)
+
+
+
+import matplotlib.pyplot as plt
+
+# 1. Preparamos una muestra de datos (las primeras 15 ciudades, por ejemplo)
+muestra_grafico = tabla_clima.head(15).copy()
+
+# 2. Calculamos quién es el máximo y el mínimo en esta muestra
+max_temp = muestra_grafico['ta'].max()
+min_temp = muestra_grafico['ta'].min()
+
+# 3. Creamos una lista de colores
+# Le decimos al robot: "Si es la máxima, pinta de rojo; si es la mínima, de azul; si no, gris"
+colores = []
+for temperatura in muestra_grafico['ta']:
+    if temperatura == max_temp:
+        colores.append('red')    # Máximo
+    elif temperatura == min_temp:
+        colores.append('blue')   # Mínimo
+    else:
+        colores.append('lightgrey') # Resto
+
+# 4. Dibujamos el lienzo
+plt.figure(figsize=(14, 7))
+
+# Creamos el gráfico de barras usando nuestra lista de colores
+barras = plt.bar(muestra_grafico['ubi'], muestra_grafico['ta'], color=colores)
+
+# 5. Añadimos títulos y etiquetas
+plt.title('Comparativa de Temperaturas: Identificando Extremos', fontsize=16, fontweight='bold')
+plt.ylabel('Temperatura (°C)', fontsize=12)
+plt.xlabel('Estaciones Meteorológicas', fontsize=12)
+plt.xticks(rotation=45, ha='right')
+
+# 6. Un toque final: añadir el número exacto encima de cada barra
+for barra in barras:
+    yval = barra.get_height()
+    plt.text(barra.get_x() + barra.get_width()/2, yval + 0.2, yval, ha='center', va='bottom')
+
+plt.tight_layout() # Para que no se corten los nombres de las ciudades
+plt.show()
+
+
+import matplotlib.pyplot as plt
+
+# 1. Filtramos los datos para obtener solo las estaciones de TENERIFE
+# Asumimos que 'tabla_clima' tiene una columna 'provincia' o similar.
+# Si no tienes esa columna, puedes filtrar por nombres de estaciones conocidos.
+filtro_tenerife = tabla_clima[tabla_clima['ubi'].str.contains('TENERIFE', case=False, na=False)]
+
+# Si el DataFrame es muy grande, tomamos la muestra de Tenerife
+muestra_grafico = filtro_tenerife.copy()
+
+# 2. Calculamos los extremos dentro de Tenerife
+max_temp = muestra_grafico['ta'].max()
+min_temp = muestra_grafico['ta'].min()
+
+# 3. Lista de colores dinámica
+colores = []
+for temperatura in muestra_grafico['ta']:
+    if temperatura == max_temp:
+        colores.append('#FF4500')    # Rojo vibrante para el máximo
+    elif temperatura == min_temp:
+        colores.append('#1E90FF')    # Azul para el mínimo
+    else:
+        colores.append('lightgrey')
+
+# 4. Configuración del lienzo
+plt.figure(figsize=(14, 8))
+
+# Creamos el gráfico
+barras = plt.bar(muestra_grafico['ubi'], muestra_grafico['ta'], color=colores)
+
+# 5. Personalización estética
+plt.title('Temperaturas en Tenerife: Máximos y Mínimos por Estación', fontsize=16, fontweight='bold', pad=20)
+plt.ylabel('Temperatura (°C)', fontsize=12)
+plt.xlabel('Estaciones en la Isla', fontsize=12)
+plt.xticks(rotation=45, ha='right')
+
+# Añadir una línea de referencia en 0°C si fuera necesario
+plt.axhline(0, color='black', linewidth=0.8, linestyle='--')
+
+# 6. Etiquetas de datos sobre las barras
+for barra in barras:
+    yval = barra.get_height()
+    plt.text(barra.get_x() + barra.get_width()/2, 
+             yval + 0.3 if yval > 0 else yval - 1.2, 
+             f'{yval}°', 
+             ha='center', va='bottom', fontweight='bold')
+
+plt.grid(axis='y', linestyle='--', alpha=0.7) # Añadimos una rejilla para facilitar la lectura
+plt.tight_layout()
+plt.show()
+
+
+
+# 1. Definimos nuestro "umbral" de alerta
+# Es mejor usar una variable para poder cambiarla fácilmente en el futuro
+limite_calor = 20.0 
+
+print(f"🕵️ Robot: Iniciando vigilancia... (Límite configurado: {limite_calor}°C)")
+print("-" * 50)
+
+# 2. Buscamos qué ciudades superan ese límite
+# Creamos una "sub-tabla" solo con las ciudades calurosas
+ciudades_en_alerta = tabla_clima[tabla_clima['ta'] >= limite_calor]
+
+# 3. El robot toma una decisión:
+# 'len()' cuenta cuántas filas hay en esa sub-tabla
+if len(ciudades_en_alerta) > 0:
+    print(f"⚠️ ¡ATENCIÓN! Se han detectado {len(ciudades_en_alerta)} estaciones con temperaturas altas:")
+    
+    # Recorremos la lista de ciudades en alerta para dar los detalles
+    for indice, fila in ciudades_en_alerta.iterrows():
+        nombre = fila['ubi']
+        temperatura = fila['ta']
+        print(f"🔴 ALERTA en {nombre}: {temperatura}°C")
+else:
+    print("✅ Robot: Todo bajo control. Ninguna estación supera el límite de calor.")
+
+
+    # Si hay alertas, guardamos un archivo especial de incidencias
+if not ciudades_en_alerta.empty:
+    nombre_alerta = f"ALERTA_CALOR_{fecha_hoy}.csv"
+    ciudades_en_alerta.to_csv(nombre_alerta, index=False)
+    print(f"📝 Se ha generado un registro de incidencias en: {nombre_alerta}")
+
+
+   # --- CONFIGURACIÓN DE VIGILANCIA PARA TENERIFE ---
+
+# 1. Definimos el umbral y la isla
+limite_calor = 20.0  # Puedes subirlo a 30.0 si quieres buscar calor extremo
+isla_objetivo = "TENERIFE"
+fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+
+print(f"🕵️ Robot: Iniciando vigilancia en {isla_objetivo}...")
+print(f"Límite configurado: {limite_calor}°C")
+print("-" * 50)
+
+# 2. Filtramos la tabla general para quedarnos solo con Tenerife
+# Usamos 'ta' porque es el nombre de columna que aparece en tus otros bloques
+tabla_tenerife = tabla_clima[tabla_clima['ubi'].str.contains(isla_objetivo, case=False, na=False)]
+
+# 3. Buscamos estaciones en Tenerife que superen el límite
+alertas_tenerife = tabla_tenerife[tabla_tenerife['ta'] >= limite_calor]
+
+# 4. El robot toma decisiones y guarda resultados
+if not alertas_tenerife.empty:
+    num_alertas = len(alertas_tenerife)
+    print(f"⚠️ ¡ATENCIÓN! Se han detectado {num_alertas} estaciones en {isla_objetivo} con calor:")
+    
+    # Listamos las estaciones calurosas por pantalla
+    for indice, fila in alertas_tenerife.iterrows():
+        print(f"🔴 ALERTA en {fila['ubi']}: {fila['ta']}°C")
+    
+    # Generamos el archivo de incidencias específico para la isla
+    nombre_alerta = f"ALERTA_CALOR_TENERIFE_{fecha_hoy}.csv"
+    alertas_tenerife.to_csv(nombre_alerta, index=False)
+    print(f"\n📝 Registro de incidencias guardado en: {nombre_alerta}")
+
+else:
+    print(f"✅ Robot: Todo bajo control en {isla_objetivo}. Ninguna estación supera los {limite_calor}°C.") 
+
+
+
+    # Si hay alertas, guardamos un archivo especial de incidencias
+if not ciudades_en_alerta.empty:
+    nombre_alerta = f"ALERTA_CALOR_{fecha_hoy}.csv"
+    ciudades_en_alerta.to_csv(nombre_alerta, index=False)
+    print(f"📝 Se ha generado un registro de incidencias en: {nombre_alerta}")
+
 # Supongamos que 'datos_climaticos' es la lista de fichas que trajo el robot
 
 # 1. La magia de una sola línea:
