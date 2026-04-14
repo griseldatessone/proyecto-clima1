@@ -22,48 +22,11 @@ if datos_permiso['estado'] == 200:
     print("🤖 Robot: Yendo a la dirección secreta a por los datos reales...")
     # No necesitamos enviar la API Key en este segundo viaje, la URL secreta ya es el permiso
     respuesta_final = requests.get(url_secreta)
-    
-    # Estos son nuestros datos climáticos reales
-    datos_climaticos = respuesta_final.json()
-    
-    # Vamos a mostrar solo los primeros 2 registros para no llenar la pantalla
-    print("📊 Robot: ¡He traído los datos! Aquí tienes una muestra de las primeras estaciones:")
-    print(datos_climaticos[:2]) 
-
-else:
-    print(f"❌ Error: AEMET dice: {datos_permiso['descripcion']}")
-
-import pandas as pd # Importamos Pandas con el apodo 'pd' (es el estándar)
-
-# --- (Imagina que aquí arriba está el código del "Segundo Viaje" que ya hicimos) ---
-
-import requests
-import time # Importamos 'time' para que el robot pueda esperar unos segundos si es necesario
-# --- CONFIGURACIÓN ---
-# En vez de escribir la API Key aquí, la pedimos al usuario
-api_key = input("🔑 Introduce tu API Key de AEMET: ")
-
-url_aemet = "https://opendata.aemet.es/opendata/api/observacion/convencional/todas"
-headers = {'cache-control': "no-cache", 'api_key': api_key}
-
-
-# --- VIAJE 1: Pedir permiso y dirección secreta ---
-print("🤖 Robot: Hola AEMET, ¿me das permiso para ver el clima de hoy?")
-respuesta_1 = requests.get(url_aemet, headers=headers)
-datos_permiso = respuesta_1.json() # Convertimos la respuesta en un diccionario de Python
-
-if datos_permiso['estado'] == 200:
-    # Si el estado es 200, AEMET nos ha dado una URL secreta en el campo 'datos'
-    url_secreta = datos_permiso['datos']
-    print(f"✅ Robot: ¡Permiso concedido! La dirección del paquete es: {url_secreta}")
-
-    # --- VIAJE 2: Ir a la dirección secreta a recoger el paquete ---
-    print("🤖 Robot: Yendo a la dirección secreta a por los datos reales...")
-    # No necesitamos enviar la API Key en este segundo viaje, la URL secreta ya es el permiso
-    respuesta_final = requests.get(url_secreta)
 
     # Estos son nuestros datos climáticos reales
     datos_climaticos = respuesta_final.json()
+    tabla_clima = pd.DataFrame(datos_climaticos)
+
 
     # Vamos a mostrar solo los primeros 2 registros para no llenar la pantalla
     print("📊 Robot: ¡He traído los datos! Aquí tienes una muestra de las primeras estaciones:")
@@ -234,9 +197,9 @@ plt.axhline(0, color='black', linewidth=0.8, linestyle='--')
 # 6. Etiquetas de datos sobre las barras
 for barra in barras:
     yval = barra.get_height()
-    plt.text(barra.get_x() + barra.get_width()/2, 
-             yval + 0.3 if yval > 0 else yval - 1.2, 
-             f'{yval}°', 
+    plt.text(barra.get_x() + barra.get_width()/2,
+             yval + 0.3 if yval > 0 else yval - 1.2,
+             f'{yval}°',
              ha='center', va='bottom', fontweight='bold')
 
 plt.grid(axis='y', linestyle='--', alpha=0.7) # Añadimos una rejilla para facilitar la lectura
@@ -247,7 +210,7 @@ plt.show()
 
 # 1. Definimos nuestro "umbral" de alerta
 # Es mejor usar una variable para poder cambiarla fácilmente en el futuro
-limite_calor = 20.0 
+limite_calor = 20.0
 
 print(f"🕵️ Robot: Iniciando vigilancia... (Límite configurado: {limite_calor}°C)")
 print("-" * 50)
@@ -260,7 +223,7 @@ ciudades_en_alerta = tabla_clima[tabla_clima['ta'] >= limite_calor]
 # 'len()' cuenta cuántas filas hay en esa sub-tabla
 if len(ciudades_en_alerta) > 0:
     print(f"⚠️ ¡ATENCIÓN! Se han detectado {len(ciudades_en_alerta)} estaciones con temperaturas altas:")
-    
+
     # Recorremos la lista de ciudades en alerta para dar los detalles
     for indice, fila in ciudades_en_alerta.iterrows():
         nombre = fila['ubi']
@@ -299,18 +262,18 @@ alertas_tenerife = tabla_tenerife[tabla_tenerife['ta'] >= limite_calor]
 if not alertas_tenerife.empty:
     num_alertas = len(alertas_tenerife)
     print(f"⚠️ ¡ATENCIÓN! Se han detectado {num_alertas} estaciones en {isla_objetivo} con calor:")
-    
+
     # Listamos las estaciones calurosas por pantalla
     for indice, fila in alertas_tenerife.iterrows():
         print(f"🔴 ALERTA en {fila['ubi']}: {fila['ta']}°C")
-    
+
     # Generamos el archivo de incidencias específico para la isla
     nombre_alerta = f"ALERTA_CALOR_TENERIFE_{fecha_hoy}.csv"
     alertas_tenerife.to_csv(nombre_alerta, index=False)
     print(f"\n📝 Registro de incidencias guardado en: {nombre_alerta}")
 
 else:
-    print(f"✅ Robot: Todo bajo control en {isla_objetivo}. Ninguna estación supera los {limite_calor}°C.") 
+    print(f"✅ Robot: Todo bajo control en {isla_objetivo}. Ninguna estación supera los {limite_calor}°C.")
 
 
 
@@ -320,17 +283,208 @@ if not ciudades_en_alerta.empty:
     ciudades_en_alerta.to_csv(nombre_alerta, index=False)
     print(f"📝 Se ha generado un registro de incidencias en: {nombre_alerta}")
 
-# Supongamos que 'datos_climaticos' es la lista de fichas que trajo el robot
 
-# 1. La magia de una sola línea:
-# Le decimos a Pandas: "Coge esta lista de fichas (JSON) y conviértela en una tabla"
-tabla_clima = pd.DataFrame(datos_climaticos)
 
-# 2. El robot nos enseña la tabla limpia
-print("✨ Robot: ¡Tachán! He organizado los datos en una tabla:")
-print(tabla_clima.head()) # '.head()' le dice al robot: "enséñame solo las primeras 5 filas"
 
-# 3. Guardar el trabajo para GitHub o Excel
-# Podemos guardar esta tabla en un archivo .csv (compatible con Excel)
-tabla_clima.to_csv("datos_aemet_final.csv", index=False)
-print("💾 Robot: He guardado la tabla en un archivo llamado 'datos_aemet_final.csv'")
+    # 1. Importamos el "cerebro" de predicción
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+# 2. Preparamos los datos
+# Supongamos que 'X' son las horas del día (9, 10, 11, 12...)
+# Y 'y' son las temperaturas que ha leído el robot
+X = np.array([9, 10, 11, 12, 13, 14]).reshape(-1, 1) # Horas
+y = np.array([18, 19, 21, 22, 24, 25])             # Temperaturas reales
+
+# 3. Creamos el modelo de predicción
+modelo = LinearRegression()
+
+# 4. ENTRENAMIENTO: El robot estudia los datos para aprender la tendencia
+modelo.fit(X, y)
+
+# 5. PREDICCIÓN: Le preguntamos "¿Qué temperatura hará a las 16:00?"
+hora_futura = np.array([[16]])
+prediccion = modelo.predict(hora_futura)
+
+print(f"🔮 Robot: Según la tendencia, a las 16:00 hará unos {prediccion[0]:.2f}°C")
+
+
+
+
+# Dibujamos los puntos reales
+plt.scatter(X, y, color='blue', label='Datos reales')
+
+# Dibujamos la línea que el robot cree que sigue el clima
+plt.plot(X, modelo.predict(X), color='red', label='Línea de tendencia')
+
+plt.title('Predicción del robot: ¿Hacia dónde va la temperatura?')
+plt.xlabel('Hora del día')
+plt.ylabel('Temperatura (°C)')
+plt.legend()
+plt.show()
+
+
+# 1. Herramientas necesarias
+from sklearn.linear_model import LinearRegression
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 2. Imaginemos que nuestra 'tabla_clima' tiene datos de una estación
+# a lo largo del tiempo (ej. de 8:00 a 13:00)
+datos_estacion = {
+    'hora': [8, 9, 10, 11, 12, 13],
+    'temp': [16.5, 17.2, 18.5, 20.1, 21.4, 23.0]
+}
+df_pred = pd.DataFrame(datos_estacion)
+
+# 3. Preparar los datos para la IA
+# El robot necesita las horas en una columna vertical (X) y las temperaturas en otra (y)
+X = df_pred['hora'].values.reshape(-1, 1)
+y = df_pred['temp'].values
+
+# 4. Crear y entrenar el modelo (El robot estudia la tendencia)
+IA_clima = LinearRegression()
+IA_clima.fit(X, y)
+
+# 5. Predecir la temperatura de la próxima hora (las 14:00)
+proxima_hora = [[14]]
+prediccion = IA_clima.predict(proxima_hora)
+
+print(f"🔮 Predicción IA: A las 14:00 la temperatura estimada es de {prediccion[0]:.2f}°C")
+
+# 6. Dibujar la "Recta de Predicción"
+plt.figure(figsize=(10, 6))
+plt.scatter(X, y, color='blue', label='Datos reales medidos') # Puntos reales
+plt.plot(X, IA_clima.predict(X), color='red', linewidth=2, label='Tendencia calculada') # Línea de la IA
+plt.scatter(proxima_hora, prediccion, color='green', marker='*', s=200, label='Predicción futura') # Estrellita futura
+
+plt.title('Modelo de Predicción Lineal: Tendencia Térmica')
+plt.xlabel('Hora del día')
+plt.ylabel('Temperatura (°C)')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+
+# Dibujamos los puntos reales
+plt.scatter(X, y, color='blue', label='Datos reales')
+
+# Dibujamos la línea que el robot cree que sigue el clima
+plt.plot(X, modelo.predict(X), color='red', label='Línea de tendencia')
+
+plt.title('Predicción del robot: ¿Hacia dónde va la temperatura?')
+plt.xlabel('Hora del día')
+plt.ylabel('Temperatura (°C)')
+plt.legend()
+plt.show()
+
+
+# 1. Herramientas necesarias
+from sklearn.linear_model import LinearRegression
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 2. Imaginemos que nuestra 'tabla_clima' tiene datos de una estación 
+# a lo largo del tiempo (ej. de 8:00 a 13:00)
+datos_estacion = {
+    'hora': [8, 9, 10, 11, 12, 13],
+    'temp': [16.5, 17.2, 18.5, 20.1, 21.4, 23.0]
+}
+df_pred = pd.DataFrame(datos_estacion)
+
+# 3. Preparar los datos para la IA
+# El robot necesita las horas en una columna vertical (X) y las temperaturas en otra (y)
+X = df_pred['hora'].values.reshape(-1, 1) 
+y = df_pred['temp'].values
+
+# 4. Crear y entrenar el modelo (El robot estudia la tendencia)
+IA_clima = LinearRegression()
+IA_clima.fit(X, y)
+
+# 5. Predecir la temperatura de la próxima hora (las 14:00)
+proxima_hora = [[14]]
+prediccion = IA_clima.predict(proxima_hora)
+
+print(f"🔮 Predicción IA: A las 14:00 la temperatura estimada es de {prediccion[0]:.2f}°C")
+
+# 6. Dibujar la "Recta de Predicción"
+plt.figure(figsize=(10, 6))
+plt.scatter(X, y, color='blue', label='Datos reales medidos') # Puntos reales
+plt.plot(X, IA_clima.predict(X), color='red', linewidth=2, label='Tendencia calculada') # Línea de la IA
+plt.scatter(proxima_hora, prediccion, color='green', marker='*', s=200, label='Predicción futura') # Estrellita futura
+
+plt.title('Modelo de Predicción Lineal: Tendencia Térmica')
+plt.xlabel('Hora del día')
+plt.ylabel('Temperatura (°C)')
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.show()
+
+
+
+
+# 1. Obtenemos la 'pendiente' (slope) de la línea de la IA
+# La pendiente nos dice cuántos grados sube o baja el clima por cada hora
+pendiente = IA_clima.coef_[0]
+
+print(f"📊 Análisis de tendencia: {pendiente:.2f} °C por hora.")
+print("-" * 50)
+
+# 2. El Robot decide qué consejo dar
+if pendiente > 1.0:
+    consejo = "🔥 ¡Cuidado! El calor está subiendo rápidamente. Hidrátate y busca sombra."
+elif pendiente > 0:
+    consejo = "☀️ El día se está calentando suavemente. Disfruta del sol con precaución."
+elif pendiente < -1.0:
+    consejo = "🧊 ¡Atención! La temperatura está bajando de golpe. Coge una chaqueta."
+else:
+    consejo = "☁️ El clima está muy estable ahora mismo. No se esperan cambios bruscos."
+
+print(f"🤖 CONSEJO DEL ROBOT: {consejo}")
+
+
+
+
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+# --- TÍTULO DE LA WEB ---
+st.set_page_config(page_title="Vigilante Climático AEMET", page_icon="🌤️")
+st.title("🤖 Asistente Climático Inteligente")
+st.markdown("Consulta datos en tiempo real y predicciones de la AEMET.")
+
+# --- BARRA LATERAL (Consultas) ---
+st.sidebar.header("Configuración")
+api_key = st.sidebar.text_input("Introduce tu API Key de AEMET", type="password")
+umbral_calor = st.sidebar.slider("Umbral de alerta (°C)", 20, 45, 30)
+
+# --- LÓGICA PRINCIPAL ---
+if api_key:
+    st.success("Conectado a la API")
+    
+    # Aquí iría el código que ya tenemos para bajar los datos
+    # (Simulamos una tabla para el ejemplo)
+    datos = {'ubi': ['Tenerife', 'Madrid', 'Barcelona'], 'temp': [22.5, 31.0, 25.4]}
+    df = pd.DataFrame(datos)
+    
+    # Mostrar la tabla en la web
+    st.subheader("📊 Datos Actuales")
+    st.dataframe(df)
+    
+    # Botón para lanzar la Alerta
+    if st.button('Revisar Alertas'):
+        alertas = df[df['temp'] >= umbral_calor]
+        if not alertas.empty:
+            st.error(f"⚠️ ¡Atención! Hay {len(alertas)} ciudades en alerta.")
+        else:
+            st.balloons() # ¡Efecto visual de globos si todo está bien!
+            st.write("✅ Todo bajo control.")
+            
+else:
+    st.warning("Por favor, introduce tu API Key en la izquierda para empezar.")
+
+
