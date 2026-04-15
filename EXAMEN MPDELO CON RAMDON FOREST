@@ -1,0 +1,105 @@
+import requests
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# 1. CONFIGURACIÓN Y CARGA DE DATOS (Bloque 1)
+API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJncmlzZWxkYXRlc3NvbmUuY3Vyc29AZ21haWwuY29tIiwianRpIjoiZmFmYzQ0YzctMjg2NS00YTg2LThhZTctNjAyODEwN2YyMzFiIiwiaXNzIjoiQUVNRVQiLCJpYXQiOjE3NzU3MzQ2NzcsInVzZXJJZCI6ImZhZmM0NGM3LTI4NjUtNGE4Ni04YWU3LTYwMjgxMDdmMjMxYiIsInJvbGUiOiIifQ.83f6HHqMticeD-jXjKucp7HJIsDefqnSzxv1xDeHqro"
+ESTACION = "C449C"  # Santa Cruz de Tenerife
+
+def obtener_datos():
+    # En un entorno real, aquí hacemos la llamada a AEMET OpenData
+    # Para este ejercicio, generamos el dataset basado en los parámetros reales de la estación
+    print(f"--- Conectando con AEMET (Estación {ESTACION}) ---")
+
+    # Simulamos la recepción de 200 registros con los errores que debemos limpiar
+    np.random.seed(42)
+    n_reg = 200
+    data = {
+        'PM2.5': np.random.normal(25, 30, n_reg),
+        'CO2': np.random.normal(410, 50, n_reg),
+        'Humedad': np.random.normal(60, 20, n_reg),
+        'Temp': np.random.normal(22, 5, n_reg)
+    }
+
+    # Introducimos "datos ruidosos" manualmente para cumplir el ejercicio
+    data['CO2'][10] = -50  # Fallo de sensor (Negativo)
+    data['PM2.5'][20] = 300; data['Humedad'][20] = 110 # Pico PM2.5 con fallo humedad
+
+    df = pd.DataFrame(data)
+    # Asignamos etiquetas basadas en lógica física
+    df['Estado'] = 'Aire Limpio'
+    df.loc[(df['PM2.5'] > 40) & (df['Humedad'] < 30), 'Estado'] = 'Episodio de Calima'
+    df.loc[(df['CO2'] > 450) & (df['PM2.5'] > 30), 'Estado'] = 'Polución Urbana'
+
+    return df
+
+# 2. LIMPIEZA CRÍTICA (Bloque 1)
+def limpiar_dataset(df):
+    print("--- Iniciando Limpieza Crítica ---")
+    # Eliminar CO2 negativos
+    df = df[df['CO2'] >= 0]
+    # Eliminar picos de PM2.5 con humedad imposible (>100%)
+    df = df[df['Humedad'] <= 100]
+    # Eliminar nulos y duplicados
+    df = df.dropna().drop_duplicates()
+    print(f"Registros tras limpieza: {len(df)}")
+    return df
+
+# EJECUCIÓN
+df_bruto = obtener_datos()
+df_limpio = limpiar_dataset(df_bruto)
+
+# 3. ENTRENAMIENTO Y OPTIMIZACIÓN (Bloque 2)
+X = df_limpio[['PM2.5', 'CO2', 'Humedad', 'Temp']]
+y = df_limpio['Estado']
+
+# Ajuste de ratio 70/30
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+
+modelo = RandomForestClassifier(n_estimators=100)
+modelo.fit(X_train, y_train)
+
+# 4. TEST DE ESTRÉS (Bloque 3)
+print("\n--- Test de Estrés: Valores Frontera ---")
+frontera = pd.DataFrame([
+    [55, 400, 5, 28],   # Calima clara
+    [45, 460, 15, 25],  # ¿Calima o Polución?
+    [10, 390, 45, 20],  # Limpio
+    [80, 600, 10, 30],  # Calima con Polución
+    [35, 405, 25, 24]   # Frontera Limpio/Calima
+], columns=['PM2.5', 'CO2', 'Humedad', 'Temp'])
+
+predicciones = modelo.predict(frontera)
+for i, pred in enumerate(predicciones):
+    print(f"Registro frontera {i+1}: Clasificado como -> {pred}")
+
+# 5. MATRIZ DE CONFUSIÓN
+y_pred = modelo.predict(X_test)
+print("\n--- Reporte de Clasificación ---")
+print(classification_report(y_test, y_pred))
+
+
+
+# 6. GENERACIÓN VISUAL DE LA MATRIZ DE CONFUSIÓN
+def generar_matriz_visual(y_test, y_pred):
+    # Creamos la matriz matemática
+    cm = confusion_matrix(y_test, y_pred)
+
+    # Configuramos el aspecto visual
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Aire Limpio', 'Calima', 'Polución'],
+                yticklabels=['Aire Limpio', 'Calima', 'Polución'])
+
+    plt.title('Matriz de Confusión: Vigilancia Atmosférica')
+    plt.ylabel('Realidad (Lo que pasó)')
+    plt.xlabel('Predicción (Lo que dijo la IA)')
+    plt.show()
+
+# Llamamos a la función
+generar_matriz_visual(y_test, y_pred)
