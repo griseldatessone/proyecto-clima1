@@ -1,0 +1,93 @@
+# @title 🌍 Dashboard de Vigilancia Atmosférica - Red Neuronal
+# @markdown Pega tu API Key y ejecuta la celda.
+
+# --- 1. LIBRERÍAS ---
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix, classification_report
+
+# --- 2. CONFIGURACIÓN ---
+API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJncmlzZWxkYXRlc3NvbmUuY3Vyc29AZ21haWwuY29tIiwianRpIjoiZmFmYzQ0YzctMjg2NS00YTg2LThhZTctNjAyODEwN2YyMzFiIiwiaXNzIjoiQUVNRVQiLCJpYXQiOjE3NzU3MzQ2NzcsInVzZXJJZCI6ImZhZmM0NGM3LTI4NjUtNGE4Ni04YWU3LTYwMjgxMDdmMjMxYiIsInJvbGUiOiIifQ.83f6HHqMticeD-jXjKucp7HJIsDefqnSzxv1xDeHqro" # @param {type:"string"}
+
+# --- 3. OBTENCIÓN Y LIMPIEZA CRÍTICA (Bloque 1) ---
+def procesar_datos():
+    np.random.seed(42)
+    n = 400 # Aumentamos datos para que la Red Neuronal aprenda mejor
+    data = {
+        'PM2.5': np.random.normal(25, 30, n),
+        'CO2': np.random.normal(410, 60, n),
+        'Humedad': np.random.normal(50, 25, n),
+        'Temp': np.random.normal(23, 6, n)
+    }
+
+    # Inyectar ruidos para demostrar limpieza
+    data['CO2'][10] = -50
+    data['PM2.5'][30] = 400; data['Humedad'][30] = 108
+
+    df = pd.DataFrame(data)
+
+    # Etiquetas (Entrenamiento Supervisado)
+    conds = [
+        (df['PM2.5'] > 50) & (df['Humedad'] < 25),
+        (df['CO2'] > 490),
+        (df['PM2.5'] <= 50) & (df['CO2'] <= 490)
+    ]
+    df['Estado'] = np.select(conds, ['Episodio de Calima', 'Polución Urbana', 'Aire Limpio'], 'Aire Limpio')
+
+    # Limpieza
+    df = df[(df['CO2'] >= 0) & (df['Humedad'] <= 100)].dropna().drop_duplicates()
+    return df
+
+df_final = procesar_datos()
+
+# --- 4. PREPARACIÓN Y ESCALADO (Vital para Redes Neuronales) ---
+X = df_final[['PM2.5', 'CO2', 'Humedad', 'Temp']]
+y = df_final['Estado']
+
+# Ratio 70/30
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+
+# La Red Neuronal necesita que los datos estén en el mismo rango (ej. de 0 a 1)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# --- 5. ENTRENAMIENTO RED NEURONAL SIMPLE (Bloque 2) ---
+# Usamos una capa oculta de 10 neuronas (Simple pero efectiva)
+modelo_nn = MLPClassifier(hidden_layer_sizes=(10,), max_iter=1000, random_state=42)
+modelo_nn.fit(X_train_scaled, y_train)
+
+# --- 6. TEST DE ESTRÉS (Bloque 3) ---
+frontera = pd.DataFrame([
+    [60, 400, 8, 30],   # Calima
+    [40, 520, 30, 22],  # Polución
+    [15, 395, 50, 20],  # Limpio
+    [100, 700, 5, 35],  # Crítico
+    [48, 410, 22, 26]   # Frontera
+], columns=['PM2.5', 'CO2', 'Humedad', 'Temp'])
+
+frontera_scaled = scaler.transform(frontera)
+pred_frontera = modelo_nn.predict(frontera_scaled)
+
+# --- 7. VISUALIZACIÓN ---
+print(f"✅ Red Neuronal entrenada para: {API_KEY[:8]}...")
+print("\n--- TEST DE ESTRÉS (RED NEURONAL) ---")
+for i, p in enumerate(pred_frontera):
+    print(f"Caso {i+1}: Clasificado como -> {p}")
+
+# Matriz de Confusión
+plt.figure(figsize=(10, 7))
+y_pred = modelo_nn.predict(X_test_scaled)
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Purples',
+            xticklabels=modelo_nn.classes_,
+            yticklabels=modelo_nn.classes_)
+plt.title('Matriz de Confusión: Red Neuronal Simple')
+plt.xlabel('Predicción IA')
+plt.ylabel('Realidad')
+plt.show()
